@@ -8,7 +8,7 @@ OUTPUT_FILE = "202312Spacial.csv"
 
 # This acts as the threshold for considering how close cells must be to each other
 #  to be considered part of the same neighborhood/cluster.
-EPS_KM = 30
+EPS_KM = 15
 EARTH_RADIUS_KM = 6371.0
 EPS_RAD = EPS_KM / EARTH_RADIUS_KM
 
