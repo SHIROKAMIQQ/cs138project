@@ -34,8 +34,6 @@ mag_sum = np.zeros((L, L))
 mag_count = np.zeros((L, L))
 mag_matrix = np.zeros((L, L))
 
-print(mapped_rows)
-print(mapped_cols)
 # Map all earthquakes to their cells
 for r, c, m in zip(mapped_rows, mapped_cols, mags):
   mag_sum[r, c] += m
