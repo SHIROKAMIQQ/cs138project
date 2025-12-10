@@ -2,16 +2,9 @@ import pandas as pd
 import numpy as np
 from pprint import pprint
 
-# These are the square endpoints from USGS_dbscan.py
-SQUARE_MIN_LAT = 7.4210
-SQUARE_MAX_LAT = 9.8038
-SQUARE_MIN_LON = 125.7307
-SQUARE_MAX_LON = 128.1135
-
 # This is the output file from USGS_dbscan.py with 202312Dataset.csv as input
 INPUT_FILE = "202312Spacial.csv"
-
-L = 500
+L = 50
 
 # Load .csv file
 df = pd.read_csv(INPUT_FILE)
@@ -19,6 +12,23 @@ points = df[['latitude', 'longitude', 'mag']].to_numpy()
 lats = points[:, 0]
 lons = points[:, 1]
 mags = points[:, 2]
+
+# Compute square in terms of lat/lon
+lat_min = lats.min()
+lat_max = lats.max()
+lon_min = lons.min()
+lon_max = lons.max()
+lat_range = lat_max - lat_min
+lon_range = lon_max - lon_min
+max_range = max(lat_range, lon_range)
+# Build square bounding box (equal sides)
+lat_mid = (lat_max + lat_min)/2
+lon_mid = (lon_max + lon_min)/2
+half_size = max_range/2
+SQUARE_MIN_LAT = lat_mid - half_size
+SQUARE_MAX_LAT = lat_mid + half_size
+SQUARE_MIN_LON = lon_mid - half_size
+SQUARE_MAX_LON = lon_mid + half_size
 
 def discretize_axis(values, axis_min, axis_max):
   partial = (values - axis_min) / (axis_max - axis_min)
