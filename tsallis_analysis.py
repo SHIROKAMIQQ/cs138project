@@ -88,7 +88,7 @@ class TsallisFitter:
         
         return distances
     
-    def calculate_time_intervals(self, df, time_col='updated'):
+    def calculate_time_intervals(self, df, time_col):
         # calculate time intervals between consecutive earthquakes (calm times)
                 
         # Calculate time differences
@@ -347,13 +347,13 @@ def plot_tsallis_fits(distances, times, distance_model, time_model):
     plt.show()
     return fig
 
-def setup1():
+def setup1(latitude, longitude, timestamp):
     #using sample size as is to produce q and beta_s values that fit the distribution.
     print("Using fitting")
     TED = TsallisEarthquakeDistribution()
     TF = TsallisFitter()
     distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
-    calms = TF.calculate_time_intervals(distrb_points)
+    calms = TF.calculate_time_intervals(distrb_points,timestamp)
     pprint(calms)
     pprint(distances)
 
@@ -364,13 +364,13 @@ def setup1():
 
 
 # extract usgs input and set sample size
-INPUT_FILE = "202312Spacial.csv"
-N =100
+INPUT_FILE_USGS = "202312Spacial.csv"
+N_USGS =100
 
 # Load .csv file and get relevant points, update updated for suitable datetime
-df = pd.read_csv(INPUT_FILE)
+df = pd.read_csv(INPUT_FILE_USGS)
 points = df[['latitude', 'longitude', 'mag', 'updated']]
-distrb_points = points.sample(n=N)
+distrb_points = points.sample(n=N_USGS)
 distrb_points['updated'] = pd.to_datetime(distrb_points['updated'])
 distrb_points = distrb_points.sort_values('updated')
 
@@ -378,4 +378,22 @@ arb_lat = distrb_points["latitude"].iloc[0]
 arb_lon = distrb_points["longitude"].iloc[0]
 print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
 
-setup1()
+#setup1("latitude","longitude","updated")
+
+# extract usgs input and set sample size
+INPUT_FILE_PHV = "PHIVOLCS_202312Spatial.csv"
+N_PHV = 40
+
+# Load .csv file and get relevant points, update updated for suitable datetime
+df = pd.read_csv(INPUT_FILE_PHV)
+points = df[['latitude', 'longitude', 'date_time']]
+distrb_points = points.sample(n=N_PHV)
+distrb_points['date_time'] = pd.to_datetime(distrb_points['date_time'])
+distrb_points = distrb_points.sort_values('date_time')
+
+pprint(distrb_points)
+arb_lat = distrb_points["latitude"].iloc[0]
+arb_lon = distrb_points["longitude"].iloc[0]
+print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
+
+setup1("latitude","longitude","date_time")
