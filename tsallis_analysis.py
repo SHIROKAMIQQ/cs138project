@@ -257,6 +257,7 @@ def plot_tsallis_fits(distances, times, distance_model, time_model):
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     
+    # crucial to avoid divide by zero
     distances = np.array(distances)
     distances = distances[distances > 0]
     times = np.array(times)
@@ -343,37 +344,28 @@ def plot_tsallis_fits(distances, times, distance_model, time_model):
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
+    plt.show()
     return fig
 
 def setup1():
     #using sample size as is to produce q and beta_s values that fit the distribution.
+    print("Using fitting")
     TED = TsallisEarthquakeDistribution()
     TF = TsallisFitter()
     distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
     calms = TF.calculate_time_intervals(distrb_points)
-    # pprint(calms)
-    # pprint(distances)
+    pprint(calms)
+    pprint(distances)
 
     TF.fit_distance_distribution(distances)
     TF.fit_time_distribution(calms)
 
     plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
 
-def setup2():
-    #using arbitrary scale constants q = 0.45, beta_s = 1.688 for the distribution.
-    TED_s = TsallisEarthquakeDistribution(q=0.45, beta_s=1.688)
-    TF = TsallisFitter()
-    distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
-    calms = TF.calculate_time_intervals(distrb_points)
-    TF.distance_model = TED_s
-    TF.time_model = TED_s
-
-    plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
-    
 
 # extract usgs input and set sample size
 INPUT_FILE = "202312Spacial.csv"
-N = 50
+N =100
 
 # Load .csv file and get relevant points, update updated for suitable datetime
 df = pd.read_csv(INPUT_FILE)
@@ -387,4 +379,3 @@ arb_lon = distrb_points["longitude"].iloc[0]
 print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
 
 setup1()
-setup2()
