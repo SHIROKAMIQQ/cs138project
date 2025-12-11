@@ -28,11 +28,11 @@ class TsallisEarthquakeDistribution:
         inner = np.maximum(inner, 0)
         return np.power(inner, exponent)
     
-    def survival_distance(self, r):
+    def p_distance(self, r):
         #P_>(r) = e_q(-beta_s * r)
         return self.q_exponential(-self.beta_s * r)
     
-    def survival_time(self, t):
+    def p_time(self, t):
         #P_>(t) = e_q(-beta_t * t)
         return self.q_exponential(-self.beta_t * t)
 
@@ -82,16 +82,16 @@ class TsallisFitter:
         distances = np.array(distances)
         distances = distances[distances > 0]
         
-        # Define objective function for survival distribution
-        def survival_func(r, q, beta):
+        # Define objective function for p distribution
+        def p_func(r, q, beta):
             temp_model = TsallisEarthquakeDistribution(q=q, beta_s=beta)
-            return temp_model.survival_distance(r)
+            return temp_model.p_distance(r)
         
-        # Fit using curve_fit on survival function
-        # Create empirical survival function
+        # Fit using curve_fit on p function
+        # Create empirical p function
         n = len(distances)
         sorted_dists = np.sort(distances)
-        empirical_survival = 1 - np.arange(1, n + 1) / n
+        empirical_p = 1 - np.arange(1, n + 1) / n
         
         # Initial parameter guesses
         p0 = [q_guess, beta_guess]
@@ -101,9 +101,9 @@ class TsallisFitter:
         
         try:
             popt, pcov = curve_fit(
-                survival_func, 
+                p_func, 
                 sorted_dists, 
-                empirical_survival,
+                empirical_p,
                 p0=p0,
                 bounds=bounds,
                 maxfev=5000
@@ -137,14 +137,14 @@ class TsallisFitter:
         calm_times = calm_times[calm_times > 0]
         
         # Define objective function
-        def survival_func(t, q, beta):
+        def p_func(t, q, beta):
             temp_model = TsallisEarthquakeDistribution(q=q, beta_t=beta)
-            return temp_model.survival_time(t)
+            return temp_model.p_time(t)
         
-        # Create empirical survival function
+        # Create empirical p function
         n = len(calm_times)
         sorted_times = np.sort(calm_times)
-        empirical_survival = 1 - np.arange(1, n + 1) / n
+        empirical_p = 1 - np.arange(1, n + 1) / n
         
         # Initial parameter guesses
         p0 = [q_guess, beta_guess]
@@ -154,9 +154,9 @@ class TsallisFitter:
         
         try:
             popt, pcov = curve_fit(
-                survival_func,
+                p_func,
                 sorted_times,
-                empirical_survival,
+                empirical_p,
                 p0=p0,
                 bounds=bounds,
                 maxfev=5000
@@ -239,7 +239,7 @@ def plot_tsallis_fits(distances, times, distance_model, time_model, tag):
     times = np.array(times)
     times = times[times > 0]
 
-    # Distance survival plot
+    # Distance p plot
     ax = axes[0]
     sorted_dists = np.sort(distances)
     empirical_surv = 1 - np.arange(1, len(sorted_dists) + 1) / len(sorted_dists)
@@ -249,18 +249,18 @@ def plot_tsallis_fits(distances, times, distance_model, time_model, tag):
     
     dist_range = np.logspace(np.log10(sorted_dists[0]), 
                             np.log10(sorted_dists[-1]), 100)
-    model_surv = distance_model.survival_distance(dist_range)
+    model_surv = distance_model.p_distance(dist_range)
     
     ax.loglog(dist_range, model_surv, 'r-', linewidth=2, 
               label=f'Tsallis (q={distance_model.q:.2f})')
     
     ax.set_xlabel('Distance from epicenter (km)')
     ax.set_ylabel('P(>= r)')
-    ax.set_title('Distance Survival Function')
+    ax.set_title('Distance p Function')
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # Time survival plot
+    # Time p plot
     ax = axes[1]
     sorted_times = np.sort(times)
     empirical_surv = 1 - np.arange(1, len(sorted_times) + 1) / len(sorted_times)
@@ -270,14 +270,14 @@ def plot_tsallis_fits(distances, times, distance_model, time_model, tag):
     
     time_range = np.logspace(np.log10(sorted_times[0]), 
                             np.log10(sorted_times[-1]), 100)
-    model_surv = time_model.survival_time(time_range)
+    model_surv = time_model.p_time(time_range)
     
     ax.loglog(time_range, model_surv, 'r-', linewidth=2, 
               label=f'Tsallis (q={time_model.q:.2f})')
     
     ax.set_xlabel('Time interval (days)')
     ax.set_ylabel('P(>= t)')
-    ax.set_title('Time Interval Survival Function')
+    ax.set_title('Time Interval p Function')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
