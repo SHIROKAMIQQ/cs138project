@@ -49,7 +49,7 @@ class TsallisEarthquakeDistribution:
             return self.beta_s * np.power(inner, -exponent)
     
     def pdf_time(self, t):
-        #p(t) = -d/dt [P_≥(t)]
+        #p(t) = -d/dt [P_>(t)]
         if self.q == 1:
             # Exponential distribution
             return self.beta_t * np.exp(-self.beta_t * t)
@@ -251,7 +251,7 @@ class TsallisFitter:
         }
 
 
-def plot_tsallis_fits(distances, times, distance_model, time_model):
+def plot_tsallis_fits(distances, times, distance_model, time_model, tag):
 
     # plot Tsallis distribution fits.
 
@@ -344,12 +344,12 @@ def plot_tsallis_fits(distances, times, distance_model, time_model):
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
+    fig.canvas.manager.set_window_title(tag) 
     plt.show()
     return fig
 
-def setup1(latitude, longitude, timestamp):
+def setup1(latitude, longitude, timestamp, tag):
     #using sample size as is to produce q and beta_s values that fit the distribution.
-    print("Using fitting")
     TED = TsallisEarthquakeDistribution()
     TF = TsallisFitter()
     distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
@@ -360,25 +360,25 @@ def setup1(latitude, longitude, timestamp):
     TF.fit_distance_distribution(distances)
     TF.fit_time_distribution(calms)
 
-    plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
+    plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model, tag)
 
 
 # extract usgs input and set sample size
-INPUT_FILE_USGS = "202312Spacial.csv"
+INPUT_FILE_USGS = "202312Spacial_Time.csv"
 N_USGS =100
 
 # Load .csv file and get relevant points, update updated for suitable datetime
 df = pd.read_csv(INPUT_FILE_USGS)
-points = df[['latitude', 'longitude', 'mag', 'updated']]
+points = df[['latitude', 'longitude', 'time']]
 distrb_points = points.sample(n=N_USGS)
-distrb_points['updated'] = pd.to_datetime(distrb_points['updated'])
-distrb_points = distrb_points.sort_values('updated')
+distrb_points['time'] = pd.to_datetime(distrb_points['time'])
+distrb_points = distrb_points.sort_values('time')
 
 arb_lat = distrb_points["latitude"].iloc[0]
 arb_lon = distrb_points["longitude"].iloc[0]
 print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
 
-#setup1("latitude","longitude","updated")
+setup1("latitude","longitude","time", "USGS dataset")
 
 # extract usgs input and set sample size
 INPUT_FILE_PHV = "PHIVOLCS_202312Spatial.csv"
@@ -396,4 +396,4 @@ arb_lat = distrb_points["latitude"].iloc[0]
 arb_lon = distrb_points["longitude"].iloc[0]
 print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
 
-setup1("latitude","longitude","date_time")
+setup1("latitude","longitude","date_time", "PHIVOLCS dataset")
