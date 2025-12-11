@@ -7,38 +7,29 @@ from scipy.optimize import curve_fit
 
 # extract usgs input and set sample size
 INPUT_FILE = "202312Spacial.csv"
-N = 20
+N = 50
 
-# Load .csv file and get relevant points
+# Load .csv file and get relevant points, update updated for suitable datetime
 df = pd.read_csv(INPUT_FILE)
 points = df[['latitude', 'longitude', 'mag', 'updated']]
-distrb_points = points.sample(n=N).to_numpy()
+distrb_points = points.sample(n=N)
+distrb_points['updated'] = pd.to_datetime(distrb_points['updated'])
+distrb_points = distrb_points.sort_values('updated')
+arb_lat = distrb_points["latitude"].iloc[0]
+arb_lon = distrb_points["longitude"].iloc[0]
 
-# pprint(points)
-# pprint(distrb_points)
+print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
 
 class TsallisEarthquakeDistribution:
     
     def __init__(self, q=1.5, beta_s=0.1, beta_t=0.1):
-        """
-        q : float
-            Tsallis q-parameter (q ≠ 1). For q → 1, reduces to exponential
-        beta_s : float
-            Spatial scale parameter (β_s)
-        beta_t : float
-            Temporal scale parameter (β_t)
-        """
         self.q = q
         self.beta_s = beta_s
         self.beta_t = beta_t
         
     def q_exponential(self, x, q=None):
-        """
-        Calculate the q-exponential function e_q(x).
-        e_q(x) = [1 + (1-q)x]_{+}^{1/(1-q)}
-        where [y]_+ = max(y, 0)
-        
-        """
+        #e_q(x) = [1 + (1-q)x]_{+}^{1/(1-q)}
+        #where [y]_+ = max(y, 0)
         if q is None:
             q = self.q
             
@@ -51,24 +42,15 @@ class TsallisEarthquakeDistribution:
         return np.power(inner, exponent)
     
     def survival_distance(self, r):
-        """
-        Calculate P_≥(r) - survival function for distance.
-        P_≥(r) = e_q(-β_s * r)
-        """
+        #P_>(r) = e_q(-beta_s * r)
         return self.q_exponential(-self.beta_s * r)
     
     def survival_time(self, t):
-        """
-        Calculate P_≥(t) - survival function for time intervals.
-        P_≥(t) = e_q(-β_t * t)
-        """
+        #P_>(t) = e_q(-beta_t * t)
         return self.q_exponential(-self.beta_t * t)
     
     def pdf_distance(self, r):
-        """
-        Probability density function for distance.
-        p(r) = -d/dr [P_≥(r)]
-        """
+        #p(r) = -d/dr [P_>(r)]
         if self.q == 1:
             # Exponential distribution
             return self.beta_s * np.exp(-self.beta_s * r)
@@ -80,10 +62,7 @@ class TsallisEarthquakeDistribution:
             return self.beta_s * np.power(inner, -exponent)
     
     def pdf_time(self, t):
-        """
-        Probability density function for time intervals.
-        p(t) = -d/dt [P_≥(t)]
-        """
+        #p(t) = -d/dt [P_≥(t)]
         if self.q == 1:
             # Exponential distribution
             return self.beta_t * np.exp(-self.beta_t * t)
@@ -101,9 +80,8 @@ class TsallisFitter:
         self.time_model = None
         
     def calculate_distances(self, df, epicenter_lat, epicenter_lon):
-        """
-        Calculate distances from epicenter for all earthquakes.
-        """
+        #calculate distances from epicenter for all earthquakes
+        
         # Convert to radians
         lat1 = np.radians(epicenter_lat)
         lon1 = np.radians(epicenter_lon)
@@ -123,17 +101,9 @@ class TsallisFitter:
         
         return distances
     
-    def calculate_time_intervals(self, df, time_col='time'):
-        """
-        Calculate time intervals between consecutive earthquakes (calm times).
-        """
-        # Ensure datetime format
-        df = df.copy()
-        df[time_col] = pd.to_datetime(df[time_col])
-        
-        # Sort by time
-        df = df.sort_values(time_col)
-        
+    def calculate_time_intervals(self, df, time_col='updated'):
+        # calculate time intervals between consecutive earthquakes (calm times)
+                
         # Calculate time differences
         time_diffs = df[time_col].diff().dropna()
         
@@ -143,9 +113,8 @@ class TsallisFitter:
         return calm_times.values
     
     def fit_distance_distribution(self, distances, q_guess=1.5, beta_guess=0.1):
-        """
-        Fit Tsallis distribution to distance data.
-        """
+        # fit distribution to distance data
+
         # Filter out zero distances if any
         distances = np.array(distances)
         distances = distances[distances > 0]
@@ -185,7 +154,7 @@ class TsallisFitter:
             
             print(f"Fitted distance distribution:")
             print(f"  q = {q_opt:.4f}")
-            print(f"  β_s = {beta_opt:.4f}")
+            print(f"  beta_s = {beta_opt:.4f}")
             
         except Exception as e:
             print(f"Fitting failed: {e}")
@@ -198,9 +167,8 @@ class TsallisFitter:
         return self.distance_model
     
     def fit_time_distribution(self, calm_times, q_guess=1.5, beta_guess=0.1):
-        """
-        Fit Tsallis distribution to calm time data.
-        """
+        # fit Tsallis distribution to calm time data
+        
         # Filter out zero or negative times
         calm_times = np.array(calm_times)
         calm_times = calm_times[calm_times > 0]
@@ -239,7 +207,7 @@ class TsallisFitter:
             
             print(f"Fitted time distribution:")
             print(f"  q = {q_opt:.4f}")
-            print(f"  β_t = {beta_opt:.4f}")
+            print(f"  beta_t = {beta_opt:.4f}")
             
         except Exception as e:
             print(f"Fitting failed: {e}")
@@ -295,38 +263,11 @@ class TsallisFitter:
             'n_samples': n
         }
 
-# Utility functions for working with earthquake data
-def prepare_earthquake_data(filepath, epicenter_lat=None, epicenter_lon=None):
-    """
-    Prepare earthquake data for Tsallis distribution analysis.
-    """
-    # Load data
-    df = pd.read_csv(filepath)
-    
-    # Convert time column
-    if 'time' in df.columns:
-        df['time'] = pd.to_datetime(df['time'])
-    
-    # Use first earthquake as epicenter if not provided
-    if epicenter_lat is None or epicenter_lon is None:
-        epicenter_lat = df['latitude'].iloc[0]
-        epicenter_lon = df['longitude'].iloc[0]
-    
-    # Initialize fitter
-    fitter = TsallisFitter()
-    
-    # Calculate distances
-    distances = fitter.calculate_distances(df, epicenter_lat, epicenter_lon)
-    
-    # Calculate calm times
-    calm_times = fitter.calculate_time_intervals(df)
-    
-    return df, distances, calm_times, (epicenter_lat, epicenter_lon)
 
 def plot_tsallis_fits(distances, calm_times, distance_model, time_model):
-    """
-    Plot Tsallis distribution fits.
-    """
+
+    # plot Tsallis distribution fits.
+
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     
     # Distance survival plot
@@ -412,58 +353,15 @@ def plot_tsallis_fits(distances, calm_times, distance_model, time_model):
     plt.tight_layout()
     return fig
 
-# Example usage with earthquake data
-def analyze_earthquake_data(filepath, epicenter_lat=None, epicenter_lon=None):
-    """
-    Complete analysis pipeline for earthquake data.
-    """
-    print("Loading and preparing data...")
-    df, distances, calm_times, epicenter = prepare_earthquake_data(
-        filepath, epicenter_lat, epicenter_lon
-    )
-    
-    print(f"\nEpicenter: {epicenter}")
-    print(f"Number of earthquakes: {len(df)}")
-    print(f"Distance range: {distances.min():.2f} - {distances.max():.2f} km")
-    print(f"Time interval range: {calm_times.min():.3f} - {calm_times.max():.3f} days")
-    
-    # Initialize fitter
-    fitter = TsallisFitter()
-    
-    print("\nFitting distance distribution...")
-    distance_model = fitter.fit_distance_distribution(distances)
-    
-    print("\nFitting time distribution...")
-    time_model = fitter.fit_time_distribution(calm_times)
-    
-    # Calculate goodness of fit
-    print("\nGoodness of fit statistics:")
-    print("\nDistance distribution:")
-    dist_gof = fitter.goodness_of_fit(distances, 'distance')
-    for key, value in dist_gof.items():
-        print(f"  {key}: {value:.4f}")
-    
-    print("\nTime distribution:")
-    time_gof = fitter.goodness_of_fit(calm_times, 'time')
-    for key, value in time_gof.items():
-        print(f"  {key}: {value:.4f}")
-    
-    # Create plots
-    fig = plot_tsallis_fits(distances, calm_times, distance_model, time_model)
-    
-    # Calculate probabilities
-    print("\nProbability calculations:")
-    print(f"P(distance ≥ 100 km) = {distance_model.survival_distance(100):.4f}")
-    print(f"P(time interval ≥ 10 days) = {time_model.survival_time(10):.4f}")
-    
-    return {
-        'dataframe': df,
-        'distances': distances,
-        'calm_times': calm_times,
-        'epicenter': epicenter,
-        'distance_model': distance_model,
-        'time_model': time_model,
-        'distance_gof': dist_gof,
-        'time_gof': time_gof,
-        'figure': fig
-    }
+
+TED = TsallisEarthquakeDistribution()
+TF = TsallisFitter()
+distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
+pprint(distances)
+calms = TF.calculate_time_intervals(distrb_points)
+pprint(calms)
+
+TF.fit_distance_distribution(distances)
+TF.fit_time_distribution(calms)
+
+plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
