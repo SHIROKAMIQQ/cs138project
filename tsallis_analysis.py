@@ -5,20 +5,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from scipy.optimize import curve_fit
 
-# extract usgs input and set sample size
-INPUT_FILE = "202312Spacial.csv"
-N = 50
 
-# Load .csv file and get relevant points, update updated for suitable datetime
-df = pd.read_csv(INPUT_FILE)
-points = df[['latitude', 'longitude', 'mag', 'updated']]
-distrb_points = points.sample(n=N)
-distrb_points['updated'] = pd.to_datetime(distrb_points['updated'])
-distrb_points = distrb_points.sort_values('updated')
-arb_lat = distrb_points["latitude"].iloc[0]
-arb_lon = distrb_points["longitude"].iloc[0]
-
-print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
 
 class TsallisEarthquakeDistribution:
     
@@ -264,12 +251,17 @@ class TsallisFitter:
         }
 
 
-def plot_tsallis_fits(distances, calm_times, distance_model, time_model):
+def plot_tsallis_fits(distances, times, distance_model, time_model):
 
     # plot Tsallis distribution fits.
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     
+    distances = np.array(distances)
+    distances = distances[distances > 0]
+    times = np.array(times)
+    times = times[times > 0]
+
     # Distance survival plot
     ax = axes[0, 0]
     sorted_dists = np.sort(distances)
@@ -312,7 +304,7 @@ def plot_tsallis_fits(distances, calm_times, distance_model, time_model):
     
     # Time survival plot
     ax = axes[1, 0]
-    sorted_times = np.sort(calm_times)
+    sorted_times = np.sort(times)
     empirical_surv = 1 - np.arange(1, len(sorted_times) + 1) / len(sorted_times)
     
     ax.loglog(sorted_times, empirical_surv, 'g.', alpha=0.6, 
@@ -333,12 +325,12 @@ def plot_tsallis_fits(distances, calm_times, distance_model, time_model):
     
     # Time PDF plot
     ax = axes[1, 1]
-    hist, bins = np.histogram(calm_times, bins=50, density=True)
+    hist, bins = np.histogram(times, bins=50, density=True)
     bin_centers = (bins[:-1] + bins[1:]) / 2
     
     ax.semilogy(bin_centers, hist, 'g.', alpha=0.6, label='Histogram')
     
-    time_range = np.linspace(0, calm_times.max(), 200)
+    time_range = np.linspace(0, times.max(), 200)
     model_pdf = time_model.pdf_time(time_range)
     
     ax.semilogy(time_range, model_pdf, 'r-', linewidth=2, 
@@ -353,15 +345,46 @@ def plot_tsallis_fits(distances, calm_times, distance_model, time_model):
     plt.tight_layout()
     return fig
 
+def setup1():
+    #using sample size as is to produce q and beta_s values that fit the distribution.
+    TED = TsallisEarthquakeDistribution()
+    TF = TsallisFitter()
+    distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
+    calms = TF.calculate_time_intervals(distrb_points)
+    # pprint(calms)
+    # pprint(distances)
 
-TED = TsallisEarthquakeDistribution()
-TF = TsallisFitter()
-distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
-pprint(distances)
-calms = TF.calculate_time_intervals(distrb_points)
-pprint(calms)
+    TF.fit_distance_distribution(distances)
+    TF.fit_time_distribution(calms)
 
-TF.fit_distance_distribution(distances)
-TF.fit_time_distribution(calms)
+    plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
 
-plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
+def setup2():
+    #using arbitrary scale constants q = 0.45, beta_s = 1.688 for the distribution.
+    TED_s = TsallisEarthquakeDistribution(q=0.45, beta_s=1.688)
+    TF = TsallisFitter()
+    distances = TF.calculate_distances(distrb_points,arb_lat,arb_lon)
+    calms = TF.calculate_time_intervals(distrb_points)
+    TF.distance_model = TED_s
+    TF.time_model = TED_s
+
+    plot_tsallis_fits(distances, calms, TF.distance_model, TF.time_model)
+    
+
+# extract usgs input and set sample size
+INPUT_FILE = "202312Spacial.csv"
+N = 50
+
+# Load .csv file and get relevant points, update updated for suitable datetime
+df = pd.read_csv(INPUT_FILE)
+points = df[['latitude', 'longitude', 'mag', 'updated']]
+distrb_points = points.sample(n=N)
+distrb_points['updated'] = pd.to_datetime(distrb_points['updated'])
+distrb_points = distrb_points.sort_values('updated')
+
+arb_lat = distrb_points["latitude"].iloc[0]
+arb_lon = distrb_points["longitude"].iloc[0]
+print(f"designated epicenter: LAT {arb_lat}, LON {arb_lon}")
+
+setup1()
+setup2()
